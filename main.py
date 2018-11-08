@@ -1,9 +1,11 @@
 __author__ = 'David T. Pocock'
 
 
+import random
 from parser import Parser
-from platypus import NSGAII, Problem, Binary
+from platypus import NSGAII, Problem, Binary, GeneticAlgorithm
 from pathlib import Path
+import seaborn as sns; sns.set()
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import os.path
@@ -20,60 +22,60 @@ def main():
     global customers
     global req_costs
     global weight
+    global budget
+    global runs
 
     parser = Parser(realistic_nrp)
     requirements, customers, req_costs = parser.parse_data()
-    weight = 0.1
+    weight = 0.9
+    budget = 0.7
+    runs = 10000
 
-    problem = Problem(1, 2)
-    problem.types[:] = Binary(len(requirements))
-    # print(problem.directions)
-    problem.directions[0] = Problem.MAXIMIZE
-    problem.directions[1] = Problem.MINIMIZE
-    problem.constraints[:] = "<=1.0"
-    problem.function = multi_objective_nrp
+    mo_problem = Problem(2, 2, 2)
+    mo_problem.types[:] = Binary(len(requirements))
+    mo_problem.directions[0] = Problem.MAXIMIZE
+    mo_problem.directions[1] = Problem.MINIMIZE
+    mo_problem.constraints[:] = "<={}".format(budget)
+    mo_problem.function = multi_objective_nrp
+    mo_nsga = NSGAII(mo_problem)
+    mo_nsga.run(runs)
 
-    algorithm = NSGAII(problem)
-    algorithm.run(500)
+    so_problem = Problem(1, 1, 1)
+    so_problem.types[:] = Binary(len(requirements))
+    so_problem.directions[:] = Problem.MAXIMIZE
+    so_problem.constraints[:] = "<={}".format(budget)
+    so_problem.function = single_objective_nrp
+    so_algorithm = GeneticAlgorithm(so_problem)
+    so_algorithm.run(runs)
 
-    print([solution.objectives[0] for solution in algorithm.result])
-    print([solution.objectives[1] for solution in algorithm.result])
+    random_vars = run_random(runs)
 
-    plt.scatter([solution.objectives[0]  for solution in algorithm.result],
-                 [solution.objectives[1] * (-1) for solution in algorithm.result], 15, edgecolors='black')
+    fig = plt.figure(figsize=(10, 6))
+    plt.scatter([solution.objectives[0] for solution in mo_nsga.result],
+                [solution.objectives[1] * (-1) for solution in mo_nsga.result], 15, edgecolors='black')
+    plt.scatter([solution.objectives[0] for solution in so_algorithm.result],
+                [solution.constraints[0] * (-1) for solution in so_algorithm.result], 15, color='red', edgecolors='black')
+    plt.scatter([var[0] for var in random_vars],
+                [var[1] * (-1) for var in random_vars], 5, marker='+')
 
-    problem = Problem(1, 1, 1)
-    problem.types[:] = Binary(len(requirements))
-    print(problem.directions)
-    problem.directions[:] = Problem.MAXIMIZE
-    problem.constraints[:] = "<=1.0"
-    problem.function = single_objective_nrp
-
-    algorithm = NSGAII(problem)
-    algorithm.run(500)
-
-    print([solution.objectives[0] for solution in algorithm.result])
-    print([solution.constraints[0] for solution in algorithm.result])
-
-    plt.scatter([solution.objectives[0] for solution in algorithm.result],
-                [solution.constraints[0] for solution in algorithm.result], 15, color='orange', edgecolors='black')
-
+    plt.title("Algorithm Performance Comparison - 10000 runs")
+    plt.xlabel("Score")
     # plt.xlim([0, 1.1])
+    plt.ylabel("-1*Cost")
     # plt.ylim([0, 1.1])
-    plt.xlabel("$f_1(x)$")
-    plt.ylabel("$f_2(x)$")
-    plt.show()
+    plt.legend(('NSGA−II', 'Single-Objective GA', 'Random search'))
+    fig.savefig('algo_compared.pdf', bbox_inches="tight")
 
 
 def single_objective_nrp(solution):
     score, cost = get_solution_vars(solution)
-    fitness_function = weight * score + (1 - weight) * (cost * (-1))
-    return score, cost*(-1)
+    fitness_function = weight * score + (1 - weight) * (cost)
+    return fitness_function, cost
 
 
 def multi_objective_nrp(solution):
     score, cost = get_solution_vars(solution)
-    return score, cost
+    return [score, cost], [cost, cost]
 
 
 def get_solution_vars(solution):
@@ -103,6 +105,19 @@ def value(req_num, customer):
     reversed_reqs = cust_reqs[::-1]
     value = (reversed_reqs.index(req_num) + 1) / len(reversed_reqs)
     return value
+
+
+def run_random(runs):
+    random_vars = []
+    for run in range(runs):
+        score, cost = get_solution_vars(generate_random_solution())
+        random_vars.append((score, cost))
+    return random_vars
+
+
+def generate_random_solution():
+    solution = [[random.randint(0, 1) for i in range(len(requirements))]]
+    return solution
 
 
 if __name__ == "__main__":
