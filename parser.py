@@ -1,7 +1,5 @@
 __author__ = 'David T. Pocock'
 
-import csv
-
 
 class Parser:
 
@@ -12,13 +10,12 @@ class Parser:
         with open(self.path, newline='') as file:
             num_of_levels = int(file.readline())
 
-            concat_req_costs = []
+            concat_reqs = []
             for level in range(0, num_of_levels):
                 next(file)
-                concat_req_costs.append(file.readline().split())
-            flat_req_costs = [int(i) for sublist in concat_req_costs for i in sublist]
-            req_costs_percent = list(map(lambda x: x / sum(flat_req_costs), flat_req_costs))
-            requirements = dict(enumerate([[i,[]] for i in req_costs_percent]))
+                concat_reqs.append(file.readline().split())
+            req_costs = [int(i) for sublist in concat_reqs for i in sublist]
+            requirements = dict(enumerate([[] for sublist in concat_reqs for i in sublist]))
 
             num_of_deps = int(file.readline())
             for dep in range(0, num_of_deps):
@@ -35,9 +32,9 @@ class Parser:
                 req_list = list(map(int, customer))
                 customers.append(req_list)
                 for num_of_req in customer:
-                    requirements[int(num_of_req) - 1][1].append(i + 1)
+                    requirements[int(num_of_req) - 1].append(i + 1)
 
             norm_cust_weights = list(map(lambda x: x / sum(cust_weights), cust_weights))
             norm_customers = list(zip(norm_cust_weights, customers))
 
-        return requirements, norm_customers
+        return requirements, norm_customers, req_costs
