@@ -34,7 +34,12 @@ class Parser:
                 for num_of_req in customer:
                     requirements[int(num_of_req) - 1].append(i + 1)
 
-            norm_cust_weights = list(map(lambda x: x / sum(cust_weights), cust_weights))
+            total_cust_weights = sum(cust_weights)
+            norm_cust_weights = list(map(lambda x: x / total_cust_weights, cust_weights))
             norm_customers = list(zip(norm_cust_weights, customers))
+
+            print("Requirements:", len(requirements))
+            print("Customers:", len(customers))
+            print("Total Customer Weights:", total_cust_weights)
 
         return requirements, norm_customers, req_costs
