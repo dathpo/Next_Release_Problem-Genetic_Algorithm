@@ -35,7 +35,7 @@ def main():
     classic_nrp = pwd / classic_dir_path / "nrp4.txt"
     realistic_nrp = pwd / realistic_dir_path / "nrp-m1.txt"
 
-    filename = 'classic_100_09_07'
+    filename = 'classic_100_09_05'
     txt_path = os.path.join(pwd, '{}'.format(filename + '.txt'))
     stdout = sys.stdout
     sys.stdout = open(txt_path, 'w')
@@ -43,10 +43,10 @@ def main():
     parser = Parser(classic_nrp)
     requirements, customers, req_costs = parser.parse_data()
 
-    weight = 0.9
-    budget = 0.7
     population_size = 100
-    runs = 100
+    weight = 0.9
+    budget = 0.5
+    runs = 10000
     first_run = True
     counter = 0
 
@@ -74,7 +74,7 @@ def main():
     plt.scatter(x_so, y_so, 20, marker='s', color='green', edgecolors='black')
     plt.scatter(x_rs, y_rs, 1, color='c')
 
-    plt.title("Comparison - Classic data set - pop_size=100, weight=0.9, budget=0.7")
+    plt.title("Comparison - Classic data set - pop_size=100, weight=0.5, budget=0.5")
     plt.xlabel("Score")
     plt.ylabel("-1*Cost")
     plt.legend(('NSGA−II', 'Single-Objective GA', 'Random search'))
@@ -83,9 +83,14 @@ def main():
     fig.savefig(graph_path, bbox_inches="tight")
 
     nsga_results = []
+    nsga_zipped_sols = []
     for nsga_sol in mo_nsga.result:
-        coupled_nsga = (nsga_sol.objectives[0], nsga_sol.objectives[1] * (-1)), sum(nsga_sol.variables[0]), nsga_sol
+        coupled_nsga = (nsga_sol.objectives[0], nsga_sol.objectives[1] * (-1)), sum(nsga_sol.variables[0]), nsga_sol.variables[0]
         nsga_results.append(coupled_nsga)
+        nsga_zipped_sols.append(nsga_sol.variables[0])
+    summed = [(i, sum(x)) for i, x in enumerate(zip(*nsga_zipped_sols))]
+    sorted_summed = sorted(summed, key=lambda x: x[1], reverse=True)
+    print("\nTop Requirements (idx, # times):", sorted_summed)
     sorted_nsga = sorted(nsga_results, key=lambda x: x[0])
     middle_nsga = (len(sorted_nsga) - 1) // 2
     middle_nsga_sol = sorted_nsga[middle_nsga]
@@ -93,7 +98,7 @@ def main():
 
     soga_results = []
     for soga_sol in so_algorithm.result:
-        coupled_soga = (soga_sol.objectives[0], soga_sol.constraints[0] * (-1)), sum(soga_sol.variables[0]), soga_sol
+        coupled_soga = (soga_sol.objectives[0], soga_sol.constraints[0] * (-1)), sum(soga_sol.variables[0]), soga_sol.variables[0]
         soga_results.append(coupled_soga)
     sorted_soga = sorted(soga_results, key=lambda x: x[0])
     middle_soga = (len(sorted_soga) - 1) // 2
